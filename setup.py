@@ -23,8 +23,8 @@ with open('README.md') as f:
 
 
 setup(
-    name='assesment_route_pipeline',
-    version='0.2.7',
+    name='assessment_route_pipeline',
+    version='1',
     description='Sample pipeline(s) handling batch and streaming route data',
     long_description=readme,
     author='David van der Vliet',

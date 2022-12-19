@@ -23,13 +23,13 @@ with open('README.md') as f:
 
 
 setup(
-    name='route_pipeline',
+    name='assesment_route_pipeline',
     version='0.2.7',
     description='Sample pipeline(s) handling batch and streaming route data',
     long_description=readme,
     author='David van der Vliet',
     author_email='d.vander.vliet@live.nl',
-    url='https://github.com/Deefvandervliet/routes.git',
+    url='https://github.com/Deefvandervliet/assessment_route_pipeline.git',
     python_requires=">=3.8",
     install_requires=install_requires,
     extras_require={
@@ -53,9 +53,9 @@ setup(
         'Programming Language :: Python :: 3.8',
     ],
 
-    py_modules=["jobs/routes"],
+    py_modules=["jobs/route"],
     entry_points={
-        "console_scripts": ["run_route_job = jobs.routes:main"],
+        "console_scripts": ["run_route_job = jobs.route:main"],
     },
     packages=find_packages(exclude=('tests', 'docs'))
 )

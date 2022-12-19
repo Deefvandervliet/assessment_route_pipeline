@@ -12,8 +12,6 @@ Last edit: 19-12-2022
 """
 
 import argparse
-from pyspark.sql import SparkSession
-from typing import Dict
 
 
 def main(args=None):
@@ -22,7 +20,7 @@ def main(args=None):
     :return: None
     """
     parser = argparse.ArgumentParser()
-    #parser.add_argument("--config_file", help="configuration file", required=True)
+    # parser.add_argument("--config_file", help="configuration file", required=True)
     parser.add_argument("--scenario", help="all the diffrent streaming scenarios", required=False, default=False)
     options, args2 = parser.parse_known_args()
 
@@ -30,7 +28,6 @@ def main(args=None):
     application_name: str = "etl_job_routes"
 
     print("hello world")
-
 
 
 # entry point for PySpark ETL application

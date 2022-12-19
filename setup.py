@@ -29,7 +29,7 @@ setup(
     long_description=readme,
     author='David van der Vliet',
     author_email='d.vander.vliet@live.nl',
-    url='https://github.com/Deefvandervliet/assessment_route_pipeline.git',
+    url='https://github.com/deefvandervliet/assessment_route_pipeline.git',
     python_requires=">=3.8",
     install_requires=install_requires,
     extras_require={
@@ -53,9 +53,6 @@ setup(
         'Programming Language :: Python :: 3.8',
     ],
 
-    py_modules=["jobs/route"],
-    entry_points={
-        "console_scripts": ["run_route_job = jobs.route:main"],
-    },
+    py_modules=["route_pipeline/etl/route"],
     packages=find_packages(exclude=('tests', 'docs'))
 )

@@ -36,7 +36,7 @@ class ETL:
     def start_session() -> SparkSession:
         """
         Start spark session
-        :return: SparkSesion
+        :return: SparkSession
         """
         return (
             SparkSession.builder.master("local[*]")

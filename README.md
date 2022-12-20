@@ -3,8 +3,7 @@ This project create a batch and streaming pipelien forhandling route information
 
 
 # Getting Started
-For a high level overview of the solution visit the page on confluence : <br>
-For a general overview / background information how this pyspark project is structured see : https://dev.azure.com/raboweb/AIDA-DevOps/_git/databricks-edl-example-pyspark-project<br>
+
 
 # Building
 

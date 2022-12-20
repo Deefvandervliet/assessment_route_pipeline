@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
-     "pyspark"
-]
+     "pyspark",
+ ]
 
 tests_require = [
     "pytest"
@@ -13,8 +13,8 @@ dev_requires = tests_require + [
 
     "flake8",
     "black",
-    "sphinx",
     "pylint",
+    "isort"
 ]
 
 with open('README.md') as f:

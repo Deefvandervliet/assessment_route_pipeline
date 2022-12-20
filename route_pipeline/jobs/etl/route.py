@@ -110,3 +110,5 @@ class ETL(object):
             .option("path", target_source_folder) \
             .trigger(availableNow=True) \
             .outputMode("append").start()
+
+        query.awaitTermination()

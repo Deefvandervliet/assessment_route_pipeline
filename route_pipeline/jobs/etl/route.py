@@ -1,7 +1,6 @@
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import SparkSession, DataFrame, GroupedData
 from pyspark.sql import functions as F
 from pyspark.sql.streaming import DataStreamReader
-from pyspark.sql.types import StructType, StringType, StructField
 from pyspark.sql import DataFrameReader
 from enum import Enum
 
@@ -20,20 +19,6 @@ class ETL(object):
         self.corrupt_record_column: str = "_corrupt_record"
         self.event_timestamp_column: str = "event_timestamp"
 
-        self.base_column_list: list = ["Airline",
-                                       "AirlineID",
-                                       "SourceAirport",
-                                       "SourceAirportID",
-                                       "DestinationAirport",
-                                       "DestinationAirportID",
-                                       "Codeshare",
-                                       "Stops",
-                                       "Equipment",
-                                       ]
-
-        self.default_column_list: list = self.base_column_list + [self.corrupt_record_column]
-        self.streaming_column_list: list = self.base_column_list + [self.event_timestamp_column] + [
-            self.corrupt_record_column]
         self.spark: SparkSession = ETL.start_session()
         self.scenario = PipelineModus.NONE
 
@@ -44,7 +29,7 @@ class ETL(object):
             .appName("etl_job_route") \
             .getOrCreate()
 
-    def read(self, route_source_folder: str, column_list: list) \
+    def read(self, route_source_folder: str) \
             -> DataFrame:
         if self.scenario in [PipelineModus.STREAMING,
                              PipelineModus.BATCH_IN_STREAMING_FASHION,
@@ -53,14 +38,29 @@ class ETL(object):
         else:
             source_input: DataFrameReader = self.spark.read
 
-        schema: StructType = StructType([StructField(name=c, dataType=StringType()) for c in column_list])
+        schema: list = ["Airline string",
+                        "AirlineID string",
+                        "SourceAirport string",
+                        "SourceAirportID string",
+                        "DestinationAirport string",
+                        "DestinationAirportID string",
+                        "Codeshare string",
+                        "Stops string",
+                        "Equipment string",
+                        f"{self.corrupt_record_column} string"
+                        ]
+
+        if self.scenario in [PipelineModus.STREAMING,
+                             PipelineModus.BATCH_IN_STREAMING_FASHION,
+                             PipelineModus.STREAMING_SLIDING_WINDOW]:
+            schema.append(f"{self.event_timestamp_column} timestamp")
 
         return source_input \
             .option("mode", "PERMISSIVE") \
             .option("sep", ",") \
             .option("header", "false") \
             .option("encoding", "UTF-8") \
-            .schema(schema) \
+            .schema(",".join(schema)) \
             .csv(route_source_folder) \
             .where(F.col("_corrupt_record").isNull()) \
             .drop("_corrupt_record")
@@ -70,7 +70,7 @@ class ETL(object):
         return input_data.replace("\\N", None) \
             .na.drop(subset=["SourceAirPortID"])
 
-    def add_scenario(self, input_data: DataFrame) -> DataFrame:
+    def add_scenario(self, input_data: DataFrame) -> GroupedData:
         if self.scenario == PipelineModus.BATCH:
             return input_data.groupBy("SourceAirPortID")
         elif self.scenario in [PipelineModus.BATCH_IN_STREAMING_FASHION, PipelineModus.STREAMING]:
@@ -92,8 +92,7 @@ class ETL(object):
     def run_batch(self, route_source_folder: str, target_source_folder: str):
 
         self.scenario = PipelineModus.BATCH
-        self.read(route_source_folder=route_source_folder,
-                  column_list=self.default_column_list) \
+        self.read(route_source_folder=route_source_folder) \
             .transform(ETL.align_data) \
             .transform(ETL.aggregate_data) \
             .write.mode("overwrite").csv(target_source_folder)
@@ -104,8 +103,7 @@ class ETL(object):
 
         self.scenario = PipelineModus.BATCH_IN_STREAMING_FASHION
         self.scenario = PipelineModus.BATCH_IN_STREAMING_FASHION
-        query: DataFrame = self.read(route_source_folder=route_source_folder,
-                                     column_list=self.streaming_column_list) \
+        query: DataFrame = self.read(route_source_folder=route_source_folder) \
             .transform(ETL.align_data) \
             .transform(self.aggregate_data)
 

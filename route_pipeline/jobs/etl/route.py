@@ -48,8 +48,7 @@ class ETL(object):
                         f"{self.corrupt_record_column} string"
                         ]
 
-        if self.scenario in [PipelineModus.STREAMING,
-                             PipelineModus.STREAMING_SLIDING_WINDOW]:
+
             schema.append(f"{self.event_timestamp_column} timestamp")
 
         return source_input \
@@ -61,6 +60,10 @@ class ETL(object):
             .csv(route_source_folder) \
             .where(F.col("_corrupt_record").isNull()) \
             .drop("_corrupt_record")
+
+streamingDF.writeStream.foreachBatch { (batchDF: DataFrame, batchId: Long) =>
+  batchDF.persist()
+  batchDF.write.format(...).save(...)  // location 1
 
     @staticmethod
     def align_data(input_data: DataFrame) -> DataFrame:
@@ -83,15 +86,15 @@ class ETL(object):
 
     def aggregate_data(self, input_data: DataFrame) -> DataFrame:
         return input_data \
-            .transform(self.add_scenario) \
-            #  .orderBy("CNT", ascending=False) \
+            .transform(self.add_scenario)
+        #  .orderBy("CNT", ascending=False) \
         #  .limit(10)
         # .sort(F.desc("CNT")) \
 
     def run(self, route_source_folder: str) -> DataFrame:
         return self.read(route_source_folder=route_source_folder) \
             .transform(ETL.align_data) \
-            .transform(ETL.aggregate_data)
+            .transform(self.aggregate_data)
 
     def run_batch(self, route_source_folder: str, target_source_folder: str):
 
@@ -102,7 +105,7 @@ class ETL(object):
     def run_streaming(self, route_source_folder: str,
                       target_source_folder: str,
                       checkpoint_folder: str, pipeline_modus: PipelineModus) -> None:
-        self.scenario: pipeline_modus = pipeline_modus
+        self.scenario = pipeline_modus
         query: DataFrame = self.run(route_source_folder=route_source_folder)
 
         sink: StreamingQuery = query.writeStream \
@@ -112,5 +115,3 @@ class ETL(object):
             .outputMode("append").start()
 
         sink.awaitTermination()
-
-

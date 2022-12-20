@@ -38,7 +38,7 @@ dist
 ## OSX
 - clone the git repo:
 ```bash
-git clone https://github.com/Deefvandervliet/assessment_route_pipeline.git
+git clone https://github.com/Deefvandervliet/route_pipeline.git
 ```
 - setup and activate a new python virtual env:
 ```bash

@@ -22,7 +22,7 @@ with open('README.md') as f:
 
 
 setup(
-    name='assessment_route_pipeline',
+    name='route_pipeline',
     version='1',
     description='Sample pipeline(s) handling batch and streaming route data',
     long_description=readme,

@@ -70,21 +70,24 @@ class ETL(object):
         return input_data.replace("\\N", None) \
             .na.drop(subset=["SourceAirPortID"])
 
-    def add_scenario(self, input_data: DataFrame) -> GroupedData:
+    def add_scenario(self, input_data: DataFrame) -> DataFrame:
         if self.scenario == PipelineModus.BATCH:
-            return input_data.groupBy("SourceAirPortID")
+            return input_data.groupBy("SourceAirPortID")\
+                .agg(F.count(F.lit(1)).alias("CNT"))
         elif self.scenario in [PipelineModus.BATCH_IN_STREAMING_FASHION, PipelineModus.STREAMING]:
             return input_data.withWatermark(self.event_timestamp_column, delayThreshold="15 minutes") \
-                .groupBy(self.event_timestamp_column, "SourceAirPortID")
+                .groupBy(self.event_timestamp_column, "SourceAirPortID") \
+                .agg(F.count(F.lit(1)).alias("CNT"))
+
         elif self.scenario == PipelineModus.STREAMING_SLIDING_WINDOW:
             return input_data.withWatermark(self.event_timestamp_column, delayThreshold="15 minutes") \
                 .groupBy(F.window(F.col(self.event_timestamp_column), "10 minutes", "5 minutes"),
-                         F.col("SourceAirPortID"))
+                         F.col("SourceAirPortID"))\
+                .agg(F.count(F.lit(1)).alias("CNT"))
 
     def aggregate_data(self, input_data: DataFrame) -> DataFrame:
         return input_data \
             .transform(self.add_scenario) \
-            .agg(F.count(F.lit(1)).alias("CNT")) \
             .orderBy("CNT") \
             .sort(F.desc("CNT")) \
             .limit(10)

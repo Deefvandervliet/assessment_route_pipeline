@@ -1,6 +1,6 @@
-from pyspark.sql import SparkSession, DataFrame, GroupedData
+from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
-from pyspark.sql.streaming import DataStreamReader
+from pyspark.sql.streaming import DataStreamReader, StreamingQuery
 from pyspark.sql import DataFrameReader
 from enum import Enum
 
@@ -8,9 +8,8 @@ from enum import Enum
 class PipelineModus(Enum):
     NONE = 0
     BATCH = 1
-    BATCH_IN_STREAMING_FASHION = 2
-    STREAMING = 3
-    STREAMING_SLIDING_WINDOW = 4
+    STREAMING = 2
+    STREAMING_SLIDING_WINDOW = 3
 
 
 class ETL(object):
@@ -32,7 +31,6 @@ class ETL(object):
     def read(self, route_source_folder: str) \
             -> DataFrame:
         if self.scenario in [PipelineModus.STREAMING,
-                             PipelineModus.BATCH_IN_STREAMING_FASHION,
                              PipelineModus.STREAMING_SLIDING_WINDOW]:
             source_input: DataStreamReader = self.spark.readStream.option("maxFilesPerTrigger", 1)
         else:
@@ -51,7 +49,6 @@ class ETL(object):
                         ]
 
         if self.scenario in [PipelineModus.STREAMING,
-                             PipelineModus.BATCH_IN_STREAMING_FASHION,
                              PipelineModus.STREAMING_SLIDING_WINDOW]:
             schema.append(f"{self.event_timestamp_column} timestamp")
 
@@ -74,11 +71,10 @@ class ETL(object):
         if self.scenario == PipelineModus.BATCH:
             return input_data.groupBy("SourceAirPortID") \
                 .agg(F.count(F.lit(1)).alias("CNT"))
-        elif self.scenario in [PipelineModus.BATCH_IN_STREAMING_FASHION, PipelineModus.STREAMING]:
+        elif self.scenario in [PipelineModus.STREAMING]:
             return input_data.withWatermark(self.event_timestamp_column, delayThreshold="15 minutes") \
                 .groupBy(self.event_timestamp_column, "SourceAirPortID") \
                 .agg(F.count(F.lit(1)).alias("CNT"))
-
         elif self.scenario == PipelineModus.STREAMING_SLIDING_WINDOW:
             return input_data.withWatermark(self.event_timestamp_column, delayThreshold="15 minutes") \
                 .groupBy(F.window(F.col(self.event_timestamp_column), "10 minutes", "5 minutes"),
@@ -88,32 +84,33 @@ class ETL(object):
     def aggregate_data(self, input_data: DataFrame) -> DataFrame:
         return input_data \
             .transform(self.add_scenario) \
-            .orderBy("CNT", ascending=False) \
-            .limit(10)
+            #  .orderBy("CNT", ascending=False) \
+        #  .limit(10)
         # .sort(F.desc("CNT")) \
+
+    def run(self, route_source_folder: str) -> DataFrame:
+        return self.read(route_source_folder=route_source_folder) \
+            .transform(ETL.align_data) \
+            .transform(ETL.aggregate_data)
 
     def run_batch(self, route_source_folder: str, target_source_folder: str):
 
         self.scenario = PipelineModus.BATCH
-        self.read(route_source_folder=route_source_folder) \
-            .transform(ETL.align_data) \
-            .transform(ETL.aggregate_data) \
+        self.run(route_source_folder=route_source_folder) \
             .write.mode("overwrite").csv(target_source_folder)
 
-    def run_batch_in_streaming(self, route_source_folder: str,
-                               target_source_folder: str,
-                               checkpoint_folder: str):
+    def run_streaming(self, route_source_folder: str,
+                      target_source_folder: str,
+                      checkpoint_folder: str, pipeline_modus: PipelineModus) -> None:
+        self.scenario: pipeline_modus = pipeline_modus
+        query: DataFrame = self.run(route_source_folder=route_source_folder)
 
-        self.scenario = PipelineModus.BATCH_IN_STREAMING_FASHION
-        self.scenario = PipelineModus.BATCH_IN_STREAMING_FASHION
-        query: DataFrame = self.read(route_source_folder=route_source_folder) \
-            .transform(ETL.align_data) \
-            .transform(self.aggregate_data)
-
-        query.writeStream.partitionBy(self.event_timestamp_column).format("csv") \
+        sink: StreamingQuery = query.writeStream \
+            .partitionBy(self.event_timestamp_column).format("csv") \
             .option("checkpointLocation", checkpoint_folder) \
             .option("path", target_source_folder) \
-            .trigger(availableNow=True) \
             .outputMode("append").start()
 
-        query.awaitTermination()
+        sink.awaitTermination()
+
+
